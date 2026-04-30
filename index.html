@@ -2680,24 +2680,32 @@ async function runOCR(dataUrl) {
   const b64 = dataUrl.split(",")[1];
   const mediaType = dataUrl.match(/data:(image\/\w+);/)?.[1] || "image/jpeg";
 
-const PROMPT = `Eres un sistema OCR especializado en credenciales de acceso aeroportuario (AED - Autorización de Empleado en el Aeropuerto).
+const PROMPT = `Eres un sistema OCR especializado en credenciales AED (Autorización de Empleado en el Aeropuerto) emitidas por CEPA — Gobierno de El Salvador.
 
-Analiza esta imagen de credencial y extrae los siguientes campos exactamente como aparecen. Responde ÚNICAMENTE con un objeto JSON válido, sin texto adicional, sin markdown, sin explicaciones.
+La credencial tiene un layout fijo de texto en este orden de arriba hacia abajo:
+  LÍNEA 1 → Nombre completo (ej: LEANDRO CAMACHO)
+  LÍNEA 2 → Puesto / cargo (ej: GERENTE TECNOLOGIA IA)
+  LÍNEA 3 → Empresa / institución (ej: AERODESPACHOS)
+  Luego aparecen: número AED, DUI, zona de acceso (A/B/C) y fecha de vigencia.
 
-Campos a extraer:
-- nombre: nombre completo de la persona
-- puesto: cargo o puesto de trabajo
-- empresa: nombre de la empresa u organización
-- numero_credencial: número de gafete AED (puede aparecer como "AED", "N°", o solo el número)
-- cedula: número DUI (documento de identidad, solo dígitos sin guiones ni puntos)
-- nivel_acceso: zona de acceso (A, B o C — toma solo la letra)
-- vigencia: fecha de expiración. Extráela EXACTAMENTE como aparece en la credencial.
-  El formato es MES/YY en español, por ejemplo: "DIC/26", "MAR/27", "ENE/28".
-  No conviertas ni reformatees — copia los caracteres tal cual aparecen en la imagen.
-  
-Si un campo no es visible o legible, usa null para ese campo.
-Responde solo con el JSON, ejemplo:
-{"nombre":"María López Ramos","puesto":"Técnico de Rampa","empresa":"Aeroglobal SA","numero_credencial":"AED-4821","cedula":"012345678","nivel_acceso":"B","vigencia":"06/2026"}`;
+REGLA CRÍTICA: Cada campo corresponde EXACTAMENTE a una línea de texto.
+- "puesto" = SOLO la línea 2, sin importar cuántas palabras tenga.
+- "empresa" = SOLO la línea 3, sin importar cuántas palabras tenga.
+- NUNCA combines línea 2 y línea 3 en el mismo campo.
+
+Extrae estos campos y responde ÚNICAMENTE con un objeto JSON válido, sin texto adicional, sin markdown:
+
+- nombre: línea 1 — nombre completo
+- puesto: línea 2 — cargo o puesto (SOLO esta línea)
+- empresa: línea 3 — empresa u organización (SOLO esta línea)
+- numero_credencial: número de gafete AED (aparece como "AED-XXX")
+- cedula: número DUI (solo dígitos y letras, sin guiones)
+- nivel_acceso: zona de acceso — solo la letra A, B o C
+- vigencia: fecha de expiración en formato MES/AA tal como aparece (ej: DIC/26). No reformatear.
+
+Si un campo no es visible o legible, usa null.
+Ejemplo de respuesta:
+{"nombre":"LEANDRO CAMACHO","puesto":"GERENTE TECNOLOGIA IA","empresa":"AERODESPACHOS","numero_credencial":"AED-460","cedula":"G437460","nivel_acceso":"B","vigencia":"DIC/26"}`;
   try {
     const res = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
