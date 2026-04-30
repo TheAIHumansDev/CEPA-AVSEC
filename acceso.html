@@ -1,0 +1,1392 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+<title>AVSEC — Control de Accesos</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&family=Exo+2:wght@300;400;500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet"/>
+<style>
+/* ── RESET & ROOT ─────────────────────────────────────── */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --void:#020B14; --deep:#030F1C; --dark:#071828; --panel:#0A2035;
+  --cyan:#00E5FF; --cyan2:#00B8D4; --cyan3:#0097A7;
+  --neon:#39FF14; --amber:#FFB300; --red:#FF1744; --violet:#E040FB;
+  --t1:#E0F7FA; --t2:#80DEEA; --t3:#4DD0E1; --dim:#37474F;
+  --mono:'Share Tech Mono',monospace;
+  --head:'Orbitron',sans-serif;
+  --body:'Exo 2',sans-serif;
+  --glow-cyan:0 0 10px #00E5FF60,0 0 30px #00E5FF30,0 0 60px #00E5FF15;
+  --glow-neon:0 0 10px #39FF1460,0 0 30px #39FF1430;
+  --glow-amber:0 0 10px #FFB30060,0 0 30px #FFB30030;
+  --glow-red:0 0 10px #FF174460,0 0 30px #FF174430;
+}
+html,body{background:var(--void);color:var(--t1);font-family:var(--body);overflow-x:hidden;min-height:100vh}
+button{cursor:pointer;border:none;font-family:var(--body);background:transparent;color:inherit}
+input,select,textarea{font-family:var(--body);font-size:16px}
+::-webkit-scrollbar{width:3px}::-webkit-scrollbar-track{background:var(--deep)}::-webkit-scrollbar-thumb{background:var(--cyan3);border-radius:2px}
+
+/* ── ANIMATIONS ─────────────────────────────────────── */
+@keyframes rotate-slow{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+@keyframes rotate-ccw{from{transform:rotate(0deg)}to{transform:rotate(-360deg)}}
+@keyframes holo-shimmer{0%{background-position:-200% center}100%{background-position:200% center}}
+@keyframes slide-up{from{opacity:0;transform:translateY(22px)}to{opacity:1;transform:translateY(0)}}
+@keyframes zoom-in{from{opacity:0;transform:scale(0.93)}to{opacity:1;transform:scale(1)}}
+@keyframes slide-left{from{opacity:0;transform:translateX(-18px)}to{opacity:1;transform:translateX(0)}}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
+@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+@keyframes grid-fade{0%,100%{opacity:.03}50%{opacity:.07}}
+@keyframes data-scroll{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
+@keyframes particle-float{
+  0%{transform:translateY(100vh) translateX(0);opacity:0}
+  10%{opacity:.6}90%{opacity:.3}
+  100%{transform:translateY(-20px) translateX(var(--dx,30px));opacity:0}
+}
+@keyframes scan-h{0%{top:0;opacity:.8}100%{top:100%;opacity:0}}
+@keyframes pulse-ring{0%{transform:scale(.8);opacity:1}100%{transform:scale(2.2);opacity:0}}
+@keyframes neon-flicker{
+  0%,19%,21%,23%,25%,54%,56%,100%{text-shadow:0 0 8px var(--cyan),0 0 20px var(--cyan),0 0 40px var(--cyan)}
+  20%,24%,55%{text-shadow:none}
+}
+@keyframes glow-pulse{
+  0%,100%{box-shadow:var(--glow-neon)}
+  50%{box-shadow:0 0 18px #39FF14aa,0 0 50px #39FF1450}
+}
+@keyframes count-up{from{opacity:0;transform:scale(1.4)}to{opacity:1;transform:scale(1)}}
+
+/* ── UTILITIES ─────────────────────────────────────── */
+.su{animation:slide-up .35s ease both}
+.zi{animation:zoom-in .3s ease both}
+
+.holo-text{
+  background:linear-gradient(90deg,var(--cyan),#fff,var(--cyan2),var(--cyan));
+  background-size:200% auto;
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+  background-clip:text;animation:holo-shimmer 4s linear infinite
+}
+
+.grid-bg{
+  position:fixed;inset:0;z-index:0;pointer-events:none;
+  background-image:
+    linear-gradient(rgba(0,229,255,.04) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(0,229,255,.04) 1px,transparent 1px);
+  background-size:48px 48px;animation:grid-fade 6s ease-in-out infinite
+}
+
+.hex-btn{
+  position:relative;font-family:var(--head);font-size:12px;font-weight:600;
+  letter-spacing:.12em;text-transform:uppercase;color:var(--cyan);
+  background:transparent;border:1px solid var(--cyan);padding:9px 20px;
+  clip-path:polygon(7px 0%,calc(100% - 7px) 0%,100% 7px,100% calc(100% - 7px),calc(100% - 7px) 100%,7px 100%,0% calc(100% - 7px),0% 7px);
+  transition:all .2s;overflow:hidden
+}
+.hex-btn::before{content:'';position:absolute;inset:0;background:var(--cyan);opacity:0;transition:opacity .2s}
+.hex-btn:hover{color:var(--void);box-shadow:var(--glow-cyan)}
+.hex-btn:hover::before{opacity:1}
+.hex-btn span{position:relative;z-index:1}
+
+.hex-solid{
+  font-family:var(--head);font-weight:700;letter-spacing:.1em;text-transform:uppercase;
+  background:var(--cyan);color:var(--void);border:none;padding:14px 24px;
+  clip-path:polygon(9px 0%,calc(100% - 9px) 0%,100% 9px,100% calc(100% - 9px),calc(100% - 9px) 100%,9px 100%,0% calc(100% - 9px),0% 9px);
+  transition:all .2s;box-shadow:var(--glow-cyan);cursor:pointer
+}
+.hex-solid:hover{background:#fff;transform:translateY(-2px)}
+.hex-solid:disabled{background:var(--dim);box-shadow:none;opacity:.5;cursor:default;transform:none}
+
+/* hex ring spinner */
+.hex-ring{position:relative;display:flex;align-items:center;justify-content:center}
+.hex-ring .r1,.hex-ring .r2{position:absolute;inset:0;border-radius:50%;border:2px solid transparent}
+.hex-ring .r1{border-top-color:var(--cyan);border-right-color:var(--cyan);animation:rotate-slow 3s linear infinite;opacity:.7}
+.hex-ring .r2{inset:6px;border-bottom-color:var(--cyan);border-left-color:var(--cyan);animation:rotate-ccw 2s linear infinite;opacity:.45}
+.hex-ring .ri{position:relative;z-index:1}
+
+/* cyber frame */
+.cyf{position:relative}
+.cyf::before,.cyf::after{content:'';position:absolute;width:13px;height:13px;z-index:2}
+.cyf::before{top:-1px;left:-1px;border-top:2px solid var(--cyan);border-left:2px solid var(--cyan)}
+.cyf::after{bottom:-1px;right:-1px;border-bottom:2px solid var(--cyan);border-right:2px solid var(--cyan)}
+
+/* screen management */
+.screen{display:none;min-height:100vh;min-height:100dvh;position:relative;overflow:hidden}
+.screen.active{display:flex;flex-direction:column;overflow-x:hidden}
+
+/* ticker */
+.ticker-wrap{border-top:1px solid rgba(0,229,255,.1);background:rgba(2,11,20,.75);padding:6px 0;overflow:hidden}
+.ticker-inner{display:inline-block;white-space:nowrap;animation:data-scroll 28s linear infinite;font-family:var(--mono);font-size:8px;color:var(--dim);letter-spacing:.08em}
+
+/* camera modal */
+#cam-modal{display:none;position:fixed;inset:0;background:rgba(2,11,20,.97);z-index:900;flex-direction:column;animation:zoom-in .25s ease}
+#cam-modal.open{display:flex}
+
+/* access badge card */
+.badge-card{transition:all .18s;border-radius:10px;overflow:hidden;animation:slide-up .25s ease}
+
+/* particles */
+#particles{position:fixed;inset:0;pointer-events:none;z-index:0;overflow:hidden}
+.ptcl{position:absolute;bottom:0;border-radius:50%;animation:particle-float linear infinite}
+
+/* access color vars */
+.access-a{color:#00E5FF;background:rgba(0,229,255,.12);border-color:rgba(0,229,255,.4)}
+.access-b{color:#39FF14;background:rgba(57,255,20,.12);border-color:rgba(57,255,20,.4)}
+.access-c{color:#FFB300;background:rgba(255,179,0,.12);border-color:rgba(255,179,0,.4)}
+
+/* sign modal */
+#sign-modal{display:none;position:fixed;inset:0;background:rgba(2,11,20,.98);z-index:1000;flex-direction:column;align-items:center;justify-content:center;padding:20px;animation:zoom-in .25s ease}
+
+/* mobile */
+@media(max-width:430px){
+  input,select,textarea{font-size:16px!important}
+  .hex-btn,.hex-solid{min-height:44px}
+  button{-webkit-tap-highlight-color:transparent}
+  #s-flight{padding:0}
+  #airline-grid{grid-template-columns:1fr 1fr 1fr!important;gap:6px!important}
+}
+@media(max-height:640px){
+  .ticker-wrap{display:none!important}
+}
+</style>
+</head>
+<body>
+
+<div id="particles" class="grid-bg"></div>
+
+<!-- ═══════════════════════════════════════════════
+     SCREEN: SELECT FLIGHT
+════════════════════════════════════════════════ -->
+<div id="s-flight" class="screen active" style="flex-direction:column;padding:0">
+  <!-- Header -->
+  <div style="background:rgba(7,24,40,.92);backdrop-filter:blur(20px);border-bottom:1px solid rgba(0,229,255,.15);padding:14px 18px;flex-shrink:0;position:relative;z-index:2">
+    <!-- User bar -->
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+      <div style="display:flex;align-items:center;gap:8px">
+        <div id="user-avatar" style="width:32px;height:32px;border-radius:50%;background:rgba(0,229,255,.12);border:1px solid rgba(0,229,255,.35);display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0">👮</div>
+        <div>
+          <div id="user-name-label" style="font-family:var(--head);font-size:10px;color:var(--cyan);letter-spacing:.06em;line-height:1.2"></div>
+          <div style="font-family:var(--mono);font-size:8px;color:var(--dim);margin-top:1px">OFICIAL DE SEGURIDAD</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:6px">
+        <button onclick="window.location.href='HT2.html'"
+          style="height:32px;padding:0 10px;border-radius:16px;background:rgba(255,179,0,.1);border:1px solid rgba(255,179,0,.3);color:var(--amber);font-family:var(--mono);font-size:9px;cursor:pointer;display:flex;align-items:center;gap:4px;transition:all .18s"
+          onmouseover="this.style.background='rgba(255,179,0,.22)'" onmouseout="this.style.background='rgba(255,179,0,.1)'">📋 HISTORIAL</button>
+        <button onclick="logout()"
+          style="width:32px;height:32px;border-radius:50%;background:rgba(255,23,68,.1);border:1px solid rgba(255,23,68,.3);color:var(--red);font-size:13px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .2s"
+          onmouseover="this.style.background='rgba(255,23,68,.25)'" onmouseout="this.style.background='rgba(255,23,68,.1)'">⏻</button>
+      </div>
+    </div>
+    <div class="holo-text" style="font-family:var(--head);font-size:clamp(18px,6vw,26px);font-weight:900;letter-spacing:.1em;line-height:1;margin-bottom:4px">CONTROL DE ACCESOS</div>
+    <div style="font-family:var(--mono);font-size:9px;color:var(--t3);letter-spacing:.1em">SJO · MROC — Ingrese datos del vuelo para comenzar</div>
+  </div>
+
+  <!-- Body: airline + flight form -->
+  <div style="flex:1;padding:clamp(12px,4vw,18px);overflow-y:auto;position:relative;z-index:1;display:flex;flex-direction:column;gap:14px">
+
+    <!-- Airline grid -->
+    <div>
+      <div style="font-family:var(--mono);font-size:9px;color:var(--dim);margin-bottom:8px;letter-spacing:.06em">AEROLÍNEA</div>
+      <div id="airline-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:8px"></div>
+    </div>
+
+    <!-- Flight details panel -->
+    <div id="flight-entry-panel" style="display:none;flex-direction:column;gap:12px">
+      <div id="selected-airline-badge" style="padding:12px 16px;border-radius:8px;background:rgba(0,229,255,.06);border:1px solid rgba(0,229,255,.2);display:flex;align-items:center;gap:12px"></div>
+
+      <div>
+        <div style="font-family:var(--mono);font-size:9px;color:var(--dim);margin-bottom:6px;letter-spacing:.06em">NÚMERO DE VUELO</div>
+        <div style="position:relative">
+          <span id="flight-num-prefix" style="position:absolute;left:13px;top:50%;transform:translateY(-50%);font-family:var(--mono);font-size:14px;color:var(--cyan);font-weight:700;letter-spacing:.08em;pointer-events:none"></span>
+          <input id="flight-number-input" type="text" maxlength="6" placeholder="001"
+            style="width:100%;padding:13px 13px 13px 56px;background:rgba(7,24,40,.9);border:1px solid rgba(0,229,255,.3);border-radius:6px;color:var(--t1);font-family:var(--mono);font-size:18px;font-weight:700;letter-spacing:.1em;outline:none"
+            oninput="onFlightNumInput(this)" onkeydown="if(event.key==='Enter') confirmFlight()"/>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div>
+          <div style="font-family:var(--mono);font-size:9px;color:var(--dim);margin-bottom:6px;letter-spacing:.06em">PUERTA / GATE</div>
+          <input id="flight-gate-input" type="text" placeholder="Ej: B12" maxlength="5"
+            style="width:100%;padding:10px 13px;background:rgba(7,24,40,.9);border:1px solid rgba(0,229,255,.2);border-radius:6px;color:var(--amber);font-family:var(--head);font-size:16px;font-weight:700;letter-spacing:.06em;outline:none"/>
+        </div>
+        <div>
+          <div style="font-family:var(--mono);font-size:9px;color:var(--dim);margin-bottom:6px;letter-spacing:.06em">DESTINO (IATA)</div>
+          <input id="flight-dest-input" type="text" placeholder="MIA, PTY…" maxlength="4"
+            style="width:100%;padding:10px 13px;background:rgba(7,24,40,.9);border:1px solid rgba(0,229,255,.2);border-radius:6px;color:var(--t1);font-family:var(--mono);font-size:14px;letter-spacing:.08em;outline:none"
+            oninput="this.value=this.value.toUpperCase()"/>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div>
+          <div style="font-family:var(--mono);font-size:9px;color:var(--dim);margin-bottom:6px;letter-spacing:.06em">HORA LLEGADA</div>
+          <input id="flight-arr-input" type="time"
+            style="width:100%;padding:10px 13px;background:rgba(7,24,40,.9);border:1px solid rgba(0,229,255,.2);border-radius:6px;color:var(--t2);font-family:var(--mono);font-size:14px;outline:none"/>
+        </div>
+        <div>
+          <div style="font-family:var(--mono);font-size:9px;color:var(--dim);margin-bottom:6px;letter-spacing:.06em">HORA SALIDA</div>
+          <input id="flight-dep-input" type="time"
+            style="width:100%;padding:10px 13px;background:rgba(7,24,40,.9);border:1px solid rgba(0,229,255,.2);border-radius:6px;color:var(--t2);font-family:var(--mono);font-size:14px;outline:none"/>
+        </div>
+      </div>
+
+      <div id="flight-confirm-error" style="display:none;padding:8px 12px;background:rgba(255,23,68,.08);border:1px solid rgba(255,23,68,.3);border-radius:6px;font-family:var(--mono);font-size:10px;color:var(--red)"></div>
+
+      <button class="hex-solid" id="flight-confirm-btn" style="width:100%;padding:17px;font-size:14px" onclick="confirmFlight()" disabled>
+        ⬡ INICIAR CONTROL DE ACCESOS
+      </button>
+    </div>
+  </div>
+
+  <div class="ticker-wrap">
+    <div class="ticker-inner">CUMPLE ANEXO 17 OACI · CERTIFICADO DGAC · SJO MROC · CONTROL DE ACCESOS AED · CUMPLE ANEXO 17 OACI · CERTIFICADO DGAC · SJO MROC · CONTROL DE ACCESOS AED · </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     SCREEN: ACCESS CONTROL (main scanner)
+════════════════════════════════════════════════ -->
+<div id="s-access" class="screen" style="flex-direction:column">
+
+  <!-- Top header -->
+  <div style="background:rgba(7,24,40,.95);backdrop-filter:blur(20px);border-bottom:1px solid rgba(57,255,20,.2);padding:12px 14px;flex-shrink:0;position:relative;z-index:2">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+      <button class="hex-btn" onclick="goFlight()" style="padding:7px 12px;font-size:10px;border-color:var(--neon);color:var(--neon)"><span>← VUELO</span></button>
+      <div style="display:flex;gap:6px;align-items:center">
+        <div id="access-clock" style="font-family:var(--mono);font-size:11px;color:var(--t2)"></div>
+        <button onclick="window.location.href='HT2.html'"
+          style="height:30px;padding:0 10px;border-radius:15px;background:rgba(255,179,0,.1);border:1px solid rgba(255,179,0,.28);color:var(--amber);font-family:var(--mono);font-size:8px;cursor:pointer;display:flex;align-items:center;gap:4px;transition:all .18s"
+          onmouseover="this.style.background='rgba(255,179,0,.22)'" onmouseout="this.style.background='rgba(255,179,0,.1)'">📋 HISTORIAL</button>
+      </div>
+    </div>
+
+    <!-- Flight info strip -->
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:12px">
+      <div>
+        <div id="access-fid" style="font-family:var(--mono);font-size:11px;color:var(--neon);margin-bottom:2px"></div>
+        <div style="font-family:var(--head);font-size:clamp(12px,3.5vw,15px);font-weight:700;letter-spacing:.04em;color:var(--neon)">CONTROL DE ACCESOS</div>
+        <div id="access-dest" style="font-family:var(--mono);font-size:9px;color:var(--t3);margin-top:2px"></div>
+      </div>
+      <div style="text-align:right">
+        <div id="access-gate" style="font-family:var(--head);font-size:clamp(15px,5vw,20px);color:var(--amber);letter-spacing:.04em"></div>
+        <div id="access-times" style="font-family:var(--mono);font-size:9px;color:var(--dim);margin-top:2px"></div>
+      </div>
+    </div>
+
+    <!-- KPI strip -->
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px">
+      <div id="kpi-total"    style="padding:8px 6px;border-radius:6px;background:rgba(0,229,255,.06);border:1px solid rgba(0,229,255,.15);text-align:center">
+        <div id="kv-total"   style="font-family:var(--head);font-size:18px;font-weight:900;color:var(--cyan);line-height:1">0</div>
+        <div style="font-family:var(--mono);font-size:7px;color:var(--dim);margin-top:2px;letter-spacing:.04em">TOTAL</div>
+      </div>
+      <div id="kpi-dentro"   style="padding:8px 6px;border-radius:6px;background:rgba(57,255,20,.05);border:1px solid rgba(57,255,20,.15);text-align:center">
+        <div id="kv-dentro"  style="font-family:var(--head);font-size:18px;font-weight:900;color:var(--neon);line-height:1">0</div>
+        <div style="font-family:var(--mono);font-size:7px;color:var(--dim);margin-top:2px;letter-spacing:.04em">DENTRO</div>
+      </div>
+      <div id="kpi-salida"   style="padding:8px 6px;border-radius:6px;background:rgba(255,23,68,.05);border:1px solid rgba(255,23,68,.12);text-align:center">
+        <div id="kv-salida"  style="font-family:var(--head);font-size:18px;font-weight:900;color:var(--red);line-height:1">0</div>
+        <div style="font-family:var(--mono);font-size:7px;color:var(--dim);margin-top:2px;letter-spacing:.04em">SALIDAS</div>
+      </div>
+      <div id="kpi-alerta"   style="padding:8px 6px;border-radius:6px;background:rgba(255,23,68,.05);border:1px solid rgba(255,23,68,.1);text-align:center">
+        <div id="kv-alerta"  style="font-family:var(--head);font-size:18px;font-weight:900;color:var(--red);line-height:1">0</div>
+        <div style="font-family:var(--mono);font-size:7px;color:var(--dim);margin-top:2px;letter-spacing:.04em">ALERTAS</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Badge log -->
+  <div id="access-log" style="flex:1;padding:clamp(10px,3vw,14px);overflow-y:auto;position:relative;z-index:1;display:flex;flex-direction:column;gap:8px">
+    <!-- Empty state -->
+    <div id="access-empty" style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:220px;gap:16px;text-align:center;padding:24px">
+      <div class="hex-ring" style="width:70px;height:70px">
+        <div class="r1" style="border-top-color:var(--neon);border-right-color:var(--neon)"></div>
+        <div class="r2" style="border-bottom-color:var(--neon);border-left-color:var(--neon)"></div>
+        <div class="ri" style="font-size:24px">📛</div>
+      </div>
+      <div style="font-family:var(--mono);font-size:11px;color:var(--t3);line-height:1.8">Sin credenciales escaneadas.<br>Use el botón para iniciar el registro.</div>
+    </div>
+  </div>
+
+  <!-- Bottom action bar -->
+  <div style="padding:10px 12px;flex-shrink:0;background:rgba(7,24,40,.97);border-top:1px solid rgba(57,255,20,.15);position:relative;z-index:2;display:flex;flex-direction:column;gap:8px">
+    <button onclick="openDirectionPrompt()"
+      style="width:100%;padding:15px;border-radius:8px;background:rgba(57,255,20,.1);border:2px solid rgba(57,255,20,.5);color:var(--neon);font-family:var(--head);font-size:13px;font-weight:700;letter-spacing:.08em;cursor:pointer;transition:all .18s;display:flex;align-items:center;justify-content:center;gap:10px;box-shadow:0 0 16px rgba(57,255,20,.1)"
+      onmouseover="this.style.background='rgba(57,255,20,.2)'" onmouseout="this.style.background='rgba(57,255,20,.1)'">
+      📛 ESCANEAR CREDENCIAL AED
+    </button>
+    <button class="hex-solid" id="finish-btn" style="width:100%;padding:14px;font-size:12px;background:var(--neon);color:#001a00;box-shadow:var(--glow-neon)" onclick="openSignatureModal()">
+      ✓ FINALIZAR CONTROL DE ACCESOS
+    </button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     SCREEN: DONE / REPORT
+════════════════════════════════════════════════ -->
+<div id="s-done" class="screen" style="flex-direction:column">
+  <div style="background:rgba(7,24,40,.95);backdrop-filter:blur(20px);border-bottom:1px solid rgba(0,229,255,.15);padding:14px 18px;flex-shrink:0;position:sticky;top:0;z-index:10">
+    <div style="display:flex;align-items:center;gap:12px">
+      <div class="hex-ring" style="width:44px;height:44px;flex-shrink:0"><div class="r1"></div><div class="r2"></div><div class="ri" style="font-size:18px">✅</div></div>
+      <div>
+        <div style="font-family:var(--head);font-size:clamp(14px,4.5vw,18px);font-weight:900;letter-spacing:.06em;color:var(--neon)">CONTROL COMPLETADO</div>
+        <div id="done-sub" style="font-family:var(--mono);font-size:10px;color:var(--t2);margin-top:2px"></div>
+      </div>
+    </div>
+  </div>
+
+  <div style="flex:1;overflow-y:auto;padding:clamp(10px,3.5vw,16px);display:flex;flex-direction:column;gap:12px;position:relative;z-index:1">
+    <div id="done-kpi" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(90px,1fr));gap:10px"></div>
+    <div id="done-sign-block"></div>
+    <div id="done-table"></div>
+  </div>
+
+  <div style="padding:10px 12px;flex-shrink:0;background:rgba(7,24,40,.95);border-top:1px solid rgba(0,229,255,.1);display:flex;flex-direction:column;gap:8px;position:relative;z-index:10">
+    <button class="hex-solid" style="width:100%;padding:15px;font-size:13px" onclick="resetAll()">⬡ NUEVO CONTROL</button>
+    <button onclick="window.location.href='HT2.html'"
+      style="width:100%;padding:12px;border-radius:6px;background:rgba(255,179,0,.1);border:1px solid rgba(255,179,0,.3);color:var(--amber);font-family:var(--head);font-size:11px;font-weight:700;letter-spacing:.08em;cursor:pointer;transition:all .18s"
+      onmouseover="this.style.background='rgba(255,179,0,.2)'" onmouseout="this.style.background='rgba(255,179,0,.1)'">📋 VER MI HISTORIAL</button>
+    <button onclick="goFlight()" style="width:100%;padding:10px;background:transparent;border:1px solid rgba(0,229,255,.2);border-radius:6px;color:var(--t3);font-family:var(--mono);font-size:10px;cursor:pointer">← INICIO</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     MODAL: DIRECCIÓN (Ingreso / Salida)
+════════════════════════════════════════════════ -->
+<div id="dir-modal" style="display:none;position:fixed;inset:0;background:rgba(2,11,20,.97);z-index:950;align-items:center;justify-content:center;padding:24px;animation:zoom-in .2s ease">
+  <div style="width:100%;max-width:320px;display:flex;flex-direction:column;align-items:center;gap:16px">
+    <div style="text-align:center">
+      <div style="font-family:var(--head);font-size:13px;color:var(--cyan);letter-spacing:.12em;margin-bottom:6px">DIRECCIÓN DE MOVIMIENTO</div>
+      <div style="font-family:var(--mono);font-size:10px;color:var(--t3)">¿Esta persona ingresa o sale del área restringida?</div>
+    </div>
+    <div style="display:flex;gap:12px;width:100%">
+      <button onclick="setDirection('in')"
+        style="flex:1;padding:22px 12px;background:rgba(57,255,20,.08);border:2px solid rgba(57,255,20,.4);border-radius:10px;color:var(--neon);font-family:var(--head);font-size:14px;font-weight:700;letter-spacing:.06em;cursor:pointer;transition:all .18s;display:flex;flex-direction:column;align-items:center;gap:6px"
+        onmouseover="this.style.background='rgba(57,255,20,.2)'" onmouseout="this.style.background='rgba(57,255,20,.08)'">
+        <span style="font-size:26px">⬇</span> INGRESO
+      </button>
+      <button onclick="setDirection('out')"
+        style="flex:1;padding:22px 12px;background:rgba(255,23,68,.08);border:2px solid rgba(255,23,68,.4);border-radius:10px;color:var(--red);font-family:var(--head);font-size:14px;font-weight:700;letter-spacing:.06em;cursor:pointer;transition:all .18s;display:flex;flex-direction:column;align-items:center;gap:6px"
+        onmouseover="this.style.background='rgba(255,23,68,.2)'" onmouseout="this.style.background='rgba(255,23,68,.08)'">
+        <span style="font-size:26px">⬆</span> SALIDA
+      </button>
+    </div>
+    <button onclick="closeDirModal()" style="font-family:var(--mono);font-size:10px;color:var(--dim);background:transparent;border:none;cursor:pointer;padding:8px;letter-spacing:.06em">✕ CANCELAR</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     CAMERA MODAL
+════════════════════════════════════════════════ -->
+<div id="cam-modal">
+  <div style="padding:14px 18px;border-bottom:1px solid rgba(0,229,255,.15);display:flex;align-items:center;justify-content:space-between;flex-shrink:0">
+    <div>
+      <div style="font-family:var(--head);font-size:13px;color:var(--cyan);letter-spacing:.1em;margin-bottom:2px">ESCANEO AED — CREDENCIAL</div>
+      <div id="cam-badge-label" style="font-family:var(--mono);font-size:10px;color:var(--t3)">OBLIGATORIO · OCR AUTOMÁTICO</div>
+    </div>
+    <button onclick="closeCam()" style="color:var(--t3);font-size:20px;padding:4px 10px;background:transparent;border:none;cursor:pointer">✕</button>
+  </div>
+  <div style="flex:1;padding:clamp(10px,4vw,18px);display:flex;flex-direction:column;gap:12px;overflow-y:auto">
+    <canvas id="cam-canvas" style="display:none"></canvas>
+    <div id="cam-body"></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     MODAL: FIRMA DIGITAL
+════════════════════════════════════════════════ -->
+<div id="sign-modal">
+  <div style="width:100%;max-width:400px;margin-bottom:14px">
+    <div style="display:flex;align-items:center;justify-content:space-between">
+      <div>
+        <div style="font-family:var(--head);font-size:16px;font-weight:900;color:var(--cyan);letter-spacing:.08em">✍ FIRMA DEL OFICIAL</div>
+        <div id="sign-subtitle" style="font-family:var(--mono);font-size:9px;color:var(--dim);margin-top:3px"></div>
+      </div>
+      <div id="sign-user-badge" style="padding:5px 12px;border-radius:4px;background:rgba(0,229,255,.08);border:1px solid rgba(0,229,255,.25);font-family:var(--mono);font-size:10px;color:var(--cyan)"></div>
+    </div>
+  </div>
+  <div style="width:100%;max-width:400px;position:relative">
+    <canvas id="sign-canvas" style="width:100%;height:200px;background:rgba(7,24,40,.9);border:1.5px solid rgba(0,229,255,.3);border-radius:10px;display:block;touch-action:none;cursor:crosshair"></canvas>
+  </div>
+  <div style="width:100%;max-width:400px;margin-top:8px;display:flex;align-items:center;justify-content:space-between">
+    <div id="sign-status" style="font-family:var(--mono);font-size:9px;color:var(--dim)">✏ Firme con su dedo en el recuadro</div>
+    <button onclick="clearSignature()" style="padding:5px 12px;border-radius:4px;background:transparent;border:1px solid rgba(255,23,68,.3);color:var(--red);font-family:var(--mono);font-size:9px;cursor:pointer;transition:all .15s" onmouseover="this.style.background='rgba(255,23,68,.1)'" onmouseout="this.style.background='transparent'">↺ Limpiar</button>
+  </div>
+  <div style="width:100%;max-width:400px;display:flex;flex-direction:column;gap:9px;margin-top:14px">
+    <button id="sign-confirm-btn" onclick="confirmSignature()" disabled
+      style="width:100%;padding:16px;border:none;border-radius:8px;font-family:var(--head);font-size:13px;font-weight:700;letter-spacing:.08em;cursor:pointer;transition:all .2s;background:var(--dim);color:rgba(255,255,255,.3);box-shadow:none">
+      ✓ CONFIRMAR Y CERRAR REPORTE
+    </button>
+    <button onclick="cancelSignature()" style="width:100%;padding:11px;background:transparent;border:1px solid rgba(0,229,255,.15);border-radius:7px;color:var(--t3);font-family:var(--mono);font-size:10px;cursor:pointer">← Volver al control</button>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════════
+// AIRLINES
+// ══════════════════════════════════════════════
+const AIRLINES = [
+  {code:"CM", name:"Copa Airlines",       iata:"CM"},
+  {code:"LH", name:"Lufthansa",           iata:"LH"},
+  {code:"Y4", name:"Volaris",             iata:"Y4"},
+  {code:"P5", name:"Wingo",              iata:"P5"},
+  {code:"E9", name:"Iberojet",           iata:"E9"},
+  {code:"M7", name:"Mas Air",            iata:"M7"},
+  {code:"PD", name:"Porter",             iata:"PD"},
+  {code:"OT", name:"Otro / No listado",  iata:""},
+];
+
+// AED badge required fields
+const BADGE_REQUIRED = [
+  {key:"nombre",            label:"Nombre Completo",    placeholder:"Ej: María López Ramos",   type:"text"},
+  {key:"puesto",            label:"Puesto",             placeholder:"Ej: Técnico de Rampa",    type:"text"},
+  {key:"empresa",           label:"Empresa",            placeholder:"Ej: Aeroglobal SA",       type:"text"},
+  {key:"numero_credencial", label:"N° Gafete AED",      placeholder:"Ej: AED-4821",            type:"text"},
+  {key:"cedula",            label:"DUI",                placeholder:"Ej: 012345678",           type:"text"},
+  {key:"nivel_acceso",      label:"Acceso (A / B / C)", placeholder:"A, B o C",                type:"text"},
+  {key:"vigencia",          label:"Vigencia (MES/AA)",  placeholder:"Ej: DIC/26",              type:"text"},
+];
+
+// Mes map for checkExpiry
+const MESES = {ENE:1,FEB:2,MAR:3,ABR:4,MAY:5,JUN:6,JUL:7,AGO:8,SEP:9,OCT:10,NOV:11,DIC:12};
+
+// ══════════════════════════════════════════════
+// STATE
+// ══════════════════════════════════════════════
+let state = {
+  flight:        null,
+  badges:        [],        // all scanned badges
+  camStream:     null,
+  pendingPhoto:  null,
+  pendingOCR:    null,
+  direction:     null,      // "in" | "out"
+  signature:     null,
+  _isDrawing:    false,
+  _hasStrokes:   false,
+  _dirCallback:  null,
+};
+
+// ══════════════════════════════════════════════
+// HELPERS
+// ══════════════════════════════════════════════
+const $ = id => document.getElementById(id);
+const t12 = () => new Date().toLocaleTimeString("es-CR",{hour:"2-digit",minute:"2-digit"});
+
+function showScreen(id) {
+  document.querySelectorAll(".screen").forEach(s=>s.classList.remove("active"));
+  $(id).classList.add("active");
+}
+
+function getApiKey()   { return localStorage.getItem("avsec_anthropic_key")||""; }
+function getScriptUrl(){ return localStorage.getItem("avsec_apps_script")||""; }
+function getSession()  { try{return JSON.parse(localStorage.getItem("avsec_user")||"null");}catch{return null;} }
+function getSessionAge(){ const t=localStorage.getItem("avsec_login_time"); if(!t)return Infinity; return (new Date()-new Date(t))/3600000; }
+function logout()      { localStorage.removeItem("avsec_user"); localStorage.removeItem("avsec_login_time"); window.location.href="login.html"; }
+
+function checkExpiry(vigencia) {
+  if(!vigencia) return {expired:false, label:""};
+  let exp;
+  // MES/YY or MES/YYYY  → DIC/26, ENE/2027
+  const mAbr = vigencia.toUpperCase().match(/^([A-Z]{3})[\/\-](\d{2,4})$/);
+  if(mAbr) {
+    const mo = MESES[mAbr[1]];
+    if(!mo) return {expired:false, label:vigencia};
+    let y = parseInt(mAbr[2]);
+    if(y<100) y+=2000;
+    exp = new Date(y, mo, 0, 23, 59, 59);
+  } else {
+    // MM/YYYY
+    const mNum = vigencia.match(/^(\d{1,2})[\/\-](\d{4})$/);
+    if(mNum) {
+      exp = new Date(+mNum[2], +mNum[1], 0, 23, 59, 59);
+    } else {
+      // DD/MM/YYYY legacy
+      const mFull = vigencia.match(/(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})/);
+      if(!mFull) return {expired:false, label:vigencia};
+      let [,d,mo,y]=mFull;
+      if(y.length===2) y="20"+y;
+      exp = new Date(+y, +mo-1, +d, 23, 59, 59);
+    }
+  }
+  const now=new Date(), expired=exp<now;
+  const diffDays=Math.ceil((exp-now)/86400000);
+  let label=vigencia;
+  if(expired){const ago=Math.abs(diffDays);label=`${vigencia} — VENCIDA hace ${ago} día${ago>1?"s":""}`;}
+  else if(diffDays<=30){label=`${vigencia} — Vence en ${diffDays} día${diffDays>1?"s":""}`;}
+  return {expired, label, daysLeft:diffDays};
+}
+
+function accessZoneColor(zona) {
+  const z=(zona||"").toUpperCase().trim();
+  if(z==="A") return {color:"#00E5FF", bg:"rgba(0,229,255,.12)", border:"rgba(0,229,255,.4)"};
+  if(z==="B") return {color:"#39FF14", bg:"rgba(57,255,20,.12)",  border:"rgba(57,255,20,.4)"};
+  if(z==="C") return {color:"#FFB300", bg:"rgba(255,179,0,.12)",  border:"rgba(255,179,0,.4)"};
+  return      {color:"#80DEEA",        bg:"rgba(128,222,234,.08)",border:"rgba(128,222,234,.25)"};
+}
+
+function toast(msg, color="var(--cyan)", border="rgba(0,229,255,.4)") {
+  const t=document.createElement("div");
+  t.style.cssText=`position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:rgba(7,24,40,.95);border:1px solid ${border};border-radius:8px;padding:10px 18px;font-family:var(--mono);font-size:11px;color:${color};z-index:300;animation:slide-up .3s ease;white-space:nowrap;backdrop-filter:blur(12px);max-width:90vw;text-overflow:ellipsis;overflow:hidden`;
+  t.textContent=msg; document.body.appendChild(t);
+  setTimeout(()=>t.remove(), 3000);
+}
+
+// ══════════════════════════════════════════════
+// PARTICLES
+// ══════════════════════════════════════════════
+(function(){
+  const c=$("particles");
+  for(let i=0;i<16;i++){
+    const p=document.createElement("div"); p.className="ptcl";
+    const sz=1+Math.random()*2, col=Math.random()>.5?"#00E5FF":"#39FF14";
+    const dur=6+Math.random()*9, delay=Math.random()*8, dx=(Math.random()-.5)*80;
+    p.style.cssText=`left:${Math.random()*100}%;width:${sz}px;height:${sz}px;background:${col};box-shadow:0 0 4px ${col};--dx:${dx}px;animation-duration:${dur}s;animation-delay:${delay}s`;
+    c.appendChild(p);
+  }
+})();
+
+// ══════════════════════════════════════════════
+// CLOCK
+// ══════════════════════════════════════════════
+setInterval(()=>{const c=$("access-clock");if(c)c.textContent=t12();},1000);
+
+// ══════════════════════════════════════════════
+// FLIGHT SELECT
+// ══════════════════════════════════════════════
+let _selectedAirline=null;
+
+function goFlight() {
+  _selectedAirline=null;
+  showScreen("s-flight");
+  renderAirlineGrid();
+  ["flight-entry-panel","flight-number-input","flight-gate-input","flight-dest-input","flight-arr-input","flight-dep-input"].forEach(id=>{
+    const el=$(id); if(!el) return;
+    if(id==="flight-entry-panel") el.style.display="none";
+    else el.value="";
+  });
+  const btn=$("flight-confirm-btn"); if(btn){btn.disabled=true;}
+  const err=$("flight-confirm-error"); if(err) err.style.display="none";
+}
+
+function renderAirlineGrid() {
+  const grid=$("airline-grid"); if(!grid) return;
+  grid.innerHTML="";
+  AIRLINES.forEach((a,i)=>{
+    const sel=_selectedAirline?.code===a.code;
+    const card=document.createElement("div");
+    card.style.cssText=`padding:10px 12px;border-radius:7px;background:${sel?"rgba(0,229,255,.12)":"rgba(10,32,53,.6)"};border:${sel?"2px solid var(--cyan)":"1px solid rgba(0,229,255,.14)"};cursor:pointer;display:flex;align-items:center;gap:8px;transition:all .18s;animation:slide-up .3s ${i*.03}s ease both`;
+    card.innerHTML=`
+      <div style="font-family:var(--mono);font-size:11px;font-weight:700;color:${sel?"var(--cyan)":"var(--t3)"};min-width:22px">${a.iata||a.code}</div>
+      <div style="font-family:var(--head);font-size:10px;font-weight:700;letter-spacing:.02em;color:${sel?"var(--cyan)":"var(--t1)"};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1">${a.name}</div>
+      ${sel?`<div style="width:6px;height:6px;border-radius:50%;background:var(--cyan);box-shadow:0 0 6px var(--cyan);flex-shrink:0"></div>`:""}`;
+    card.onclick=()=>selectAirline(a);
+    grid.appendChild(card);
+  });
+}
+
+function selectAirline(a) {
+  _selectedAirline=a;
+  renderAirlineGrid();
+  const panel=$("flight-entry-panel"); if(panel) panel.style.display="flex";
+  const badge=$("selected-airline-badge");
+  if(badge) badge.innerHTML=`
+    <div class="hex-ring" style="width:36px;height:36px;flex-shrink:0"><div class="r1"></div><div class="r2"></div><div class="ri" style="font-size:13px">✈</div></div>
+    <div>
+      <div style="font-family:var(--head);font-size:14px;font-weight:700;color:var(--cyan);letter-spacing:.04em">${a.name}</div>
+      <div style="font-family:var(--mono);font-size:10px;color:var(--t3)">Código IATA: ${a.iata||a.code}</div>
+    </div>`;
+  const pfx=$("flight-num-prefix"); if(pfx) pfx.textContent=a.iata||a.code;
+  const inp=$("flight-number-input"); if(inp){inp.focus();inp.value="";}
+  const btn=$("flight-confirm-btn"); if(btn) btn.disabled=true;
+}
+
+function onFlightNumInput(inp) {
+  inp.value=inp.value.replace(/\D/g,"");
+  const btn=$("flight-confirm-btn");
+  if(btn) btn.disabled=!(inp.value.length>=1 && _selectedAirline);
+  const err=$("flight-confirm-error"); if(err) err.style.display="none";
+}
+
+function confirmFlight() {
+  if(!_selectedAirline) return;
+  const num=($("flight-number-input")?.value||"").trim();
+  if(!num){showFlightError("Ingrese el número de vuelo."); return;}
+  const gate=($("flight-gate-input")?.value||"").toUpperCase().trim();
+  const dest=($("flight-dest-input")?.value||"").toUpperCase().trim();
+  const arr =$("flight-arr-input")?.value||"";
+  const dep =$("flight-dep-input")?.value||"";
+  const now=new Date();
+  const date=`${String(now.getDate()).padStart(2,"0")}${String(now.getMonth()+1).padStart(2,"0")}${now.getFullYear()}`;
+  state.flight={
+    id:`${_selectedAirline.iata||_selectedAirline.code}${num}`,
+    airline:_selectedAirline.name, code:_selectedAirline.iata||_selectedAirline.code,
+    gate:gate||"--", dest:dest||"---", arr, dep,
+    folderName:`${_selectedAirline.code}_${num}_${date}`, date,
+  };
+  state.badges=[];
+  // Fill access screen headers
+  $("access-fid").textContent=`${state.flight.id} · ${state.flight.airline}`;
+  $("access-gate").textContent=`PUERTA ${state.flight.gate}`;
+  $("access-dest").textContent=dest?`✈ ${dest}`:"";
+  $("access-times").textContent=[arr?`ARR ${arr}`:"", dep?`DEP ${dep}`:""].filter(Boolean).join(" · ");
+  updateKPIs();
+  renderAccessLog();
+  showScreen("s-access");
+}
+
+function showFlightError(msg) {
+  const el=$("flight-confirm-error");
+  if(el){el.textContent=msg;el.style.display="block";}
+}
+
+// ══════════════════════════════════════════════
+// ACCESS LOG RENDER
+// ══════════════════════════════════════════════
+function updateKPIs() {
+  const total  = state.badges.length;
+  const salida = state.badges.filter(b=>b.direction==="out").length;
+  const dentro = total - salida;
+  const alerta = state.badges.filter(b=>b.ocr && checkExpiry(b.ocr.vigencia).expired).length;
+  animKPI("kv-total",  total);
+  animKPI("kv-dentro", dentro);
+  animKPI("kv-salida", salida);
+  animKPI("kv-alerta", alerta);
+  const alertEl=$("kpi-alerta");
+  if(alertEl){
+    alertEl.style.borderColor=alerta>0?"rgba(255,23,68,.5)":"rgba(255,23,68,.1)";
+    alertEl.style.background =alerta>0?"rgba(255,23,68,.12)":"rgba(255,23,68,.05)";
+  }
+}
+
+function animKPI(id, val) {
+  const el=$(id); if(!el) return;
+  const prev=parseInt(el.textContent)||0;
+  if(prev===val) return;
+  el.textContent=val;
+  el.style.animation="none"; void el.offsetWidth;
+  el.style.animation="count-up .3s ease";
+}
+
+function renderAccessLog() {
+  const log=$("access-log"); if(!log) return;
+  const empty=$("access-empty");
+  if(state.badges.length===0){
+    if(empty) empty.style.display="flex";
+    // Remove cards
+    log.querySelectorAll(".badge-card").forEach(c=>c.remove());
+    return;
+  }
+  if(empty) empty.style.display="none";
+  // Full re-render
+  log.querySelectorAll(".badge-card").forEach(c=>c.remove());
+  state.badges.forEach((b,i)=>log.appendChild(buildBadgeCard(b,i)));
+}
+
+function buildBadgeCard(b, i) {
+  const o=b.ocr||{};
+  const isOut=b.direction==="out";
+  const expInfo=checkExpiry(o.vigencia);
+  const expired=expInfo.expired;
+  const expiringSoon=!expired && expInfo.daysLeft!=null && expInfo.daysLeft<=30;
+  const zc=accessZoneColor(o.nivel_acceso);
+
+  const dirColor = isOut ? "var(--red)"  : "var(--neon)";
+  const dirBg    = isOut ? "rgba(255,23,68,.1)"  : "rgba(57,255,20,.08)";
+  const dirBor   = isOut ? "rgba(255,23,68,.35)" : "rgba(57,255,20,.25)";
+  const cardBor  = expired ? "rgba(255,23,68,.5)" : expiringSoon ? "rgba(255,179,0,.45)" : dirBor;
+
+  const card=document.createElement("div");
+  card.className="badge-card";
+  card.style.cssText=`border:1px solid ${cardBor};background:rgba(10,32,53,.7);`;
+
+  card.innerHTML=`
+    <div style="display:flex;gap:0">
+      <!-- Photo column -->
+      <div style="position:relative;width:72px;flex-shrink:0">
+        <img src="${b.photo||''}" style="width:72px;height:100%;min-height:90px;object-fit:cover;display:block"/>
+        ${isOut?`<div style="position:absolute;inset:0;background:rgba(255,23,68,.2);display:flex;align-items:center;justify-content:center"><span style="font-size:24px">⬆</span></div>`:`<div style="position:absolute;inset:0;background:rgba(57,255,20,.08);display:flex;align-items:center;justify-content:center;opacity:0"><span style="font-size:22px">⬇</span></div>`}
+        ${expired?`<div style="position:absolute;bottom:0;left:0;right:0;background:rgba(255,23,68,.85);font-family:var(--mono);font-size:7px;color:#fff;text-align:center;padding:2px;font-weight:700;letter-spacing:.04em">⚠ VENCIDA</div>`:""}
+      </div>
+      <!-- Data column -->
+      <div style="flex:1;padding:9px 11px;min-width:0;display:flex;flex-direction:column;gap:4px">
+        <!-- Row 1: direction badge + time + exit button -->
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:6px">
+          <div style="display:flex;align-items:center;gap:6px">
+            <span style="font-family:var(--mono);font-size:8px;padding:2px 7px;background:${dirBg};border:1px solid ${dirBor};border-radius:2px;color:${dirColor};font-weight:700">${isOut?"⬆ SALIDA":"⬇ INGRESO"}</span>
+            <span style="font-family:var(--mono);font-size:8px;color:var(--dim)">${isOut?(b.exitTime||b.time):b.time}</span>
+          </div>
+          <button onclick="toggleExit(${i})"
+            style="padding:4px 9px;border-radius:14px;font-family:var(--mono);font-size:8px;font-weight:700;cursor:pointer;transition:all .18s;min-height:28px;
+              background:${isOut?"rgba(57,255,20,.1)":"rgba(255,23,68,.1)"};
+              border:1px solid ${isOut?"rgba(57,255,20,.4)":"rgba(255,23,68,.35)"};
+              color:${isOut?"var(--neon)":"var(--red)"}"
+            title="${isOut?"Deshacer salida":"Marcar salida"}">
+            ${isOut?"✓ SALIÓ":"☑ SALIDA"}
+          </button>
+        </div>
+        <!-- Row 2: name -->
+        ${o.nombre?`<div style="font-family:var(--head);font-size:12px;font-weight:700;color:var(--t1);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${o.nombre}</div>`:""}
+        <!-- Row 3: puesto / empresa -->
+        <div style="font-family:var(--mono);font-size:9px;color:var(--t3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+          ${[o.puesto, o.empresa].filter(Boolean).join(" · ")||"Sin datos OCR"}
+        </div>
+        <!-- Row 4: chips -->
+        <div style="display:flex;gap:4px;flex-wrap:wrap;align-items:center">
+          ${o.cedula?`<span style="font-family:var(--mono);font-size:8px;padding:1px 5px;background:rgba(0,229,255,.09);border:1px solid rgba(0,229,255,.2);border-radius:2px;color:var(--t2)">DUI: ${o.cedula}</span>`:""}
+          ${o.numero_credencial?`<span style="font-family:var(--mono);font-size:8px;padding:1px 5px;background:rgba(224,64,251,.08);border:1px solid rgba(224,64,251,.22);border-radius:2px;color:var(--violet)">AED: ${o.numero_credencial}</span>`:""}
+          ${o.nivel_acceso?`<span style="font-family:var(--mono);font-size:8px;padding:1px 6px;background:${zc.bg};border:1px solid ${zc.border};border-radius:2px;color:${zc.color};font-weight:700">ACCESO ${o.nivel_acceso}</span>`:""}
+          ${o.vigencia?(()=>{
+            const col=expired?"var(--red)":expiringSoon?"var(--amber)":"rgba(128,222,234,.7)";
+            const bg =expired?"rgba(255,23,68,.12)":expiringSoon?"rgba(255,179,0,.08)":"rgba(128,222,234,.06)";
+            const bor=expired?"rgba(255,23,68,.4)" :expiringSoon?"rgba(255,179,0,.3)" :"rgba(128,222,234,.2)";
+            return `<span style="font-family:var(--mono);font-size:8px;padding:1px 5px;background:${bg};border:1px solid ${bor};border-radius:2px;color:${col}">${expired?"⚠ ":""}${expiringSoon?"⏰ ":""}${o.vigencia}</span>`;
+          })():""}
+        </div>
+      </div>
+    </div>`;
+  return card;
+}
+
+function toggleExit(i) {
+  const b=state.badges[i]; if(!b) return;
+  const wasOut=b.direction==="out";
+  b.direction = wasOut ? "in" : "out";
+  if(!wasOut) b.exitTime=t12();
+  const name=b.ocr?.nombre?` · ${b.ocr.nombre.split(" ")[0]}`:"";
+  toast(wasOut?`↩ Salida deshecha${name}`:`⬆ SALIDA registrada${name}`, wasOut?"var(--cyan)":"var(--red)", wasOut?"rgba(0,229,255,.4)":"rgba(255,23,68,.4)");
+  updateKPIs();
+  renderAccessLog();
+}
+
+// ══════════════════════════════════════════════
+// DIRECTION PROMPT
+// ══════════════════════════════════════════════
+function openDirectionPrompt() {
+  $("dir-modal").style.display="flex";
+}
+function closeDirModal() {
+  $("dir-modal").style.display="none";
+  state.direction=null;
+}
+function setDirection(dir) {
+  state.direction=dir;
+  $("dir-modal").style.display="none";
+  const label = dir==="in" ? `INGRESO · CRED. ${state.badges.length+1}` : `SALIDA · CRED. ${state.badges.length+1}`;
+  $("cam-badge-label").textContent=label;
+  openCam();
+}
+
+// ══════════════════════════════════════════════
+// CAMERA
+// ══════════════════════════════════════════════
+function openCam() {
+  $("cam-modal").classList.add("open");
+  startCamera();
+}
+function closeCam() {
+  stopCamStream();
+  $("cam-modal").classList.remove("open");
+  state.pendingPhoto=null;
+  state.pendingOCR=null;
+}
+function stopCamStream() {
+  if(state.camStream){state.camStream.getTracks().forEach(t=>t.stop());state.camStream=null;}
+}
+function startCamera() {
+  const body=$("cam-body");
+  body.innerHTML=`<div style="font-family:var(--mono);font-size:11px;color:var(--cyan);text-align:center;padding:20px">Accediendo a la cámara...</div>`;
+  navigator.mediaDevices?.getUserMedia({video:{facingMode:"environment"},audio:false})
+    .then(stream=>{state.camStream=stream; renderLiveCamera(stream);})
+    .catch(()=>renderSimCamera());
+}
+
+function renderLiveCamera(stream) {
+  const body=$("cam-body"); body.innerHTML="";
+  const wrap=document.createElement("div");
+  wrap.style.cssText="position:relative;border-radius:10px;overflow:hidden;border:1px solid rgba(0,229,255,.3);background:#000;margin-bottom:12px";
+  const video=document.createElement("video");
+  video.autoplay=true; video.playsInline=true; video.muted=true;
+  video.srcObject=stream;
+  video.style.cssText="width:100%;display:block;min-height:220px;object-fit:cover";
+  const live=document.createElement("div");
+  live.style.cssText="position:absolute;top:10px;left:10px;font-family:var(--mono);font-size:9px;color:var(--cyan);padding:2px 8px;background:rgba(2,11,20,.7);border-radius:2px";
+  live.textContent="⬤ LIVE";
+  wrap.appendChild(video); wrap.appendChild(live);
+  const btn=document.createElement("button");
+  btn.className="hex-solid"; btn.style.cssText="width:100%;padding:14px;font-size:13px";
+  btn.textContent="📷 CAPTURAR CREDENCIAL";
+  btn.onclick=()=>shootPhoto(video);
+  body.appendChild(wrap); body.appendChild(btn);
+}
+
+function renderSimCamera() {
+  const body=$("cam-body"); body.innerHTML="";
+  const wrap=document.createElement("div");
+  wrap.style.cssText="position:relative;background:var(--panel);border-radius:10px;border:1px solid rgba(0,229,255,.25);min-height:180px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;margin-bottom:12px;padding:20px;text-align:center";
+  wrap.innerHTML=`<div style="font-family:var(--mono);font-size:11px;color:var(--t2);line-height:1.7">📷 Cámara no disponible en este navegador<br><span style="color:var(--cyan)">Toque abajo para simular la captura</span></div>`;
+  const btn=document.createElement("button");
+  btn.className="hex-solid"; btn.style.cssText="width:100%;padding:14px;font-size:13px";
+  btn.textContent="📷 SIMULAR CAPTURA";
+  btn.onclick=()=>{
+    btn.textContent="CAPTURANDO..."; btn.disabled=true;
+    const canvas=$("cam-canvas"); canvas.width=640; canvas.height=480;
+    const ctx=canvas.getContext("2d");
+    const g=ctx.createLinearGradient(0,0,640,480);
+    g.addColorStop(0,"#0a2035"); g.addColorStop(.5,"#071828"); g.addColorStop(1,"#0d2840");
+    ctx.fillStyle=g; ctx.fillRect(0,0,640,480);
+    ctx.fillStyle="rgba(57,255,20,.55)"; ctx.font="12px 'Share Tech Mono'";
+    ctx.fillText(`CONTROL ACCESOS · ${t12()}`,20,30); ctx.fillText("CRED. AED · SJO MROC",20,50);
+    ctx.strokeStyle="rgba(57,255,20,.3)"; ctx.lineWidth=1; ctx.strokeRect(80,80,480,320);
+    ctx.fillStyle="rgba(57,255,20,.1)"; ctx.fillRect(80,80,480,320);
+    ctx.fillStyle="rgba(57,255,20,.6)"; ctx.font="11px monospace";
+    ctx.fillText("[CREDENCIAL AED — SIMULADA]",180,248);
+    setTimeout(()=>renderCaptured(canvas.toDataURL("image/jpeg",.85)),800);
+  };
+  body.appendChild(wrap); body.appendChild(btn);
+}
+
+function shootPhoto(video) {
+  const canvas=$("cam-canvas");
+  canvas.width=video.videoWidth||640; canvas.height=video.videoHeight||480;
+  canvas.getContext("2d").drawImage(video,0,0);
+  stopCamStream();
+  renderCaptured(canvas.toDataURL("image/jpeg",.85));
+}
+
+// ══════════════════════════════════════════════
+// CAPTURED PHOTO → OCR PANEL
+// ══════════════════════════════════════════════
+function renderCaptured(dataUrl) {
+  state.pendingPhoto=dataUrl;
+  state.pendingOCR=null;
+  const body=$("cam-body"); body.innerHTML="";
+
+  // Photo preview
+  const photoWrap=document.createElement("div");
+  photoWrap.style.cssText="position:relative;border-radius:10px;overflow:hidden;border:1px solid var(--neon);box-shadow:0 0 14px rgba(57,255,20,.2);margin-bottom:12px";
+  photoWrap.innerHTML=`
+    <img src="${dataUrl}" style="width:100%;display:block;max-height:200px;object-fit:cover"/>
+    <div style="position:absolute;inset:0;background:linear-gradient(transparent 55%,rgba(2,11,20,.85))"></div>
+    <div style="position:absolute;bottom:10px;left:12px;font-family:var(--mono);font-size:10px;color:var(--neon)">◉ CREDENCIAL AED · ${t12()}</div>`;
+  body.appendChild(photoWrap);
+
+  // OCR panel
+  const ocrPanel=document.createElement("div");
+  ocrPanel.id="ocr-panel";
+  ocrPanel.style.cssText="padding:14px;background:rgba(57,255,20,.04);border:1px solid rgba(57,255,20,.18);border-radius:8px;margin-bottom:12px";
+  ocrPanel.innerHTML=`
+    <div style="font-family:var(--head);font-size:11px;color:var(--neon);letter-spacing:.1em;margin-bottom:4px;display:flex;align-items:center;gap:8px">
+      🔍 <span>DATOS AED — OCR</span>
+      <div id="ocr-spinner" style="width:14px;height:14px;border-radius:50%;border:2px solid rgba(57,255,20,.2);border-top-color:var(--neon);animation:rotate-slow .8s linear infinite;flex-shrink:0"></div>
+    </div>
+    <div style="font-family:var(--mono);font-size:9px;color:var(--dim);margin-bottom:10px">Extrayendo con Vision AI · complete en amarillo si faltan datos</div>
+    <div id="ocr-result" style="font-family:var(--mono);font-size:10px;color:var(--t3);line-height:1.8">Analizando credencial...</div>`;
+  body.appendChild(ocrPanel);
+
+  // Action buttons
+  const btns=document.createElement("div");
+  btns.style.cssText="display:flex;gap:10px;margin-top:4px";
+  btns.innerHTML=`
+    <button class="hex-btn" style="flex:1;padding:11px 0;font-size:10px;border-color:var(--neon);color:var(--neon)" onclick="startCamera()"><span>↺ REPETIR</span></button>
+    <button class="hex-solid" id="confirm-photo-btn" style="flex:2;font-size:12px;background:var(--neon);color:#001a00;box-shadow:var(--glow-neon)" onclick="confirmPhoto()" disabled>✓ USAR CREDENCIAL</button>`;
+  body.appendChild(btns);
+
+  // Run OCR
+  requestAnimationFrame(()=>runOCR(dataUrl));
+}
+
+// ══════════════════════════════════════════════
+// CLAUDE OCR
+// ══════════════════════════════════════════════
+async function runOCR(dataUrl) {
+  const resultEl=$("ocr-result");
+  const spinnerEl=$("ocr-spinner");
+  const apiKey=getApiKey();
+
+  if(!apiKey) {
+    if(spinnerEl) spinnerEl.style.display="none";
+    if(resultEl) resultEl.innerHTML=`<div style="color:var(--amber);font-size:10px;line-height:1.7">⚠ Sin API key configurada.<br>Configure su Anthropic API key en <span style="color:var(--cyan)">login.html → Configuración</span></div>`;
+    renderOCRPanel({});
+    return;
+  }
+
+  const b64=dataUrl.split(",")[1];
+  const mediaType=dataUrl.match(/data:(image\/\w+);/)?.[1]||"image/jpeg";
+
+  const PROMPT=`Eres un sistema OCR especializado en credenciales AED (Autorización de Empleado en el Aeropuerto).
+
+Analiza esta imagen de credencial y extrae los siguientes campos exactamente como aparecen. Responde ÚNICAMENTE con un objeto JSON válido, sin texto adicional, sin markdown, sin explicaciones.
+
+Campos a extraer:
+- nombre: nombre completo de la persona
+- puesto: cargo o puesto de trabajo
+- empresa: nombre de la empresa u organización
+- numero_credencial: número de gafete AED (puede aparecer como "AED", "N°", o solo el número)
+- cedula: número DUI (documento de identidad, solo dígitos sin guiones ni puntos)
+- nivel_acceso: zona de acceso (A, B o C — extrae solo la letra)
+- vigencia: fecha de expiración. El formato es MES/AA en español, por ejemplo: "DIC/26", "MAR/27", "ENE/28". Extrae EXACTAMENTE como aparece en la imagen, sin convertir ni reformatear.
+
+Si un campo no es visible o legible, usa null.
+Responde solo con el JSON, ejemplo:
+{"nombre":"María López Ramos","puesto":"Técnico de Rampa","empresa":"Aeroglobal SA","numero_credencial":"AED-4821","cedula":"012345678","nivel_acceso":"B","vigencia":"DIC/26"}`;
+
+  try {
+    const res=await fetch("https://api.anthropic.com/v1/messages",{
+      method:"POST",
+      headers:{"Content-Type":"application/json","x-api-key":apiKey,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},
+      body:JSON.stringify({
+        model:"claude-haiku-4-5-20251001",
+        max_tokens:300,
+        messages:[{role:"user",content:[
+          {type:"image",source:{type:"base64",media_type:mediaType,data:b64}},
+          {type:"text",text:PROMPT}
+        ]}]
+      })
+    });
+    if(!res.ok){const e=await res.json().catch(()=>({}));throw new Error(e?.error?.message||`HTTP ${res.status}`);}
+    const data=await res.json();
+    const raw=data?.content?.[0]?.text||"{}";
+    const clean=raw.replace(/```json|```/g,"").trim();
+    let parsed={};
+    try{parsed=JSON.parse(clean);}catch{}
+    Object.keys(parsed).forEach(k=>{
+      if(parsed[k]===null||parsed[k]===undefined||parsed[k]==="") delete parsed[k];
+      else parsed[k]=String(parsed[k]).trim();
+    });
+    if(spinnerEl) spinnerEl.style.display="none";
+    renderOCRPanel(parsed);
+  } catch(err) {
+    console.error("OCR error:",err);
+    if(spinnerEl) spinnerEl.style.display="none";
+    renderOCRPanel({_error:`Error: ${err.message?.slice(0,80)||"desconocido"}`});
+  }
+}
+
+function renderOCRPanel(parsed) {
+  state.pendingOCR=Object.assign({},parsed);
+  const resultEl=$("ocr-result");
+  const confirmBtn=$("confirm-photo-btn");
+  if(!resultEl) return;
+
+  let html="";
+  BADGE_REQUIRED.forEach(f=>{
+    const val=parsed[f.key]||"";
+    const haVal=val.trim().length>0;
+    const isVig=f.key==="vigencia";
+    const expInfo=isVig&&haVal?checkExpiry(val):null;
+    const expired=expInfo?.expired;
+    const soon=!expired&&expInfo?.daysLeft!=null&&expInfo.daysLeft<=30;
+
+    let borderCol, bgCol, labelCol, badge="";
+    if(expired){borderCol="rgba(255,23,68,.6)";bgCol="rgba(255,23,68,.08)";labelCol="var(--red)";badge=`<span style="font-size:8px;color:var(--red);margin-left:4px;animation:blink 1s infinite">⚠ VENCIDA</span>`;}
+    else if(soon){borderCol="rgba(255,179,0,.5)";bgCol="rgba(255,179,0,.07)";labelCol="var(--amber)";badge=`<span style="font-size:8px;color:var(--amber);margin-left:4px">⏰ PRÓXIMA</span>`;}
+    else if(haVal){borderCol="rgba(57,255,20,.3)";bgCol="rgba(57,255,20,.05)";labelCol="var(--dim)";badge=`<span style="font-size:8px;color:var(--neon);margin-left:4px">✓</span>`;}
+    else{borderCol="rgba(255,179,0,.5)";bgCol="rgba(255,179,0,.07)";labelCol="var(--amber)";badge=`<span style="font-size:8px;color:var(--amber);margin-left:4px">✎</span>`;}
+
+    // Special: nivel_acceso chip color
+    let extraNote="";
+    if(f.key==="nivel_acceso"&&haVal){
+      const zc=accessZoneColor(val);
+      extraNote=`<div style="margin-top:3px"><span style="font-family:var(--mono);font-size:9px;padding:2px 8px;background:${zc.bg};border:1px solid ${zc.border};border-radius:2px;color:${zc.color};font-weight:700">ZONA ${val}</span></div>`;
+    }
+    if(expired) extraNote+=`<div style="font-family:var(--mono);font-size:8px;color:var(--red);margin-top:3px">⚠ CREDENCIAL VENCIDA — ACCESO DENEGADO</div>`;
+    if(soon) extraNote+=`<div style="font-family:var(--mono);font-size:8px;color:var(--amber);margin-top:3px">⏰ ${expInfo.label}</div>`;
+
+    html+=`<div style="display:flex;flex-direction:column;gap:2px;padding:5px 0;border-bottom:1px solid rgba(57,255,20,.07)">
+      <div style="display:flex;align-items:center">
+        <span style="color:${labelCol};font-size:9px;letter-spacing:.04em;font-family:var(--mono)">${f.label}</span>${badge}
+      </div>
+      <input data-field="${f.key}" type="${f.type}" value="${val.replace(/"/g,"&quot;")}" placeholder="${f.placeholder}"
+        style="background:${bgCol};border:1px solid ${borderCol};border-radius:4px;color:var(--t1);padding:5px 9px;font-family:var(--mono);font-size:11px;width:100%;outline:none;margin-top:2px"
+        oninput="ocrFieldEdit(this)"/>
+      ${extraNote}
+    </div>`;
+  });
+
+  resultEl.innerHTML=html;
+
+  // Confirm button state
+  if(confirmBtn){
+    confirmBtn.disabled=false;
+    const allFilled=BADGE_REQUIRED.every(f=>(state.pendingOCR[f.key]||"").trim().length>0);
+    const expiredCred=state.pendingOCR.vigencia?checkExpiry(state.pendingOCR.vigencia).expired:false;
+    confirmBtn.style.background=expiredCred?"var(--red)":allFilled?"var(--neon)":"var(--cyan)";
+    confirmBtn.style.color=expiredCred?"#fff":"#001a00";
+    confirmBtn.style.boxShadow=expiredCred?"var(--glow-red)":allFilled?"var(--glow-neon)":"var(--glow-cyan)";
+    confirmBtn.textContent=expiredCred?"⚠ VENCIDA — CONFIRMAR IGUALMENTE":allFilled?"✓ CONFIRMAR AED":"✓ USAR CREDENCIAL";
+  }
+}
+
+function ocrFieldEdit(input) {
+  const key=input.dataset.field;
+  if(!state.pendingOCR) state.pendingOCR={};
+  state.pendingOCR[key]=input.value.trim();
+  const filled=input.value.trim().length>0;
+
+  if(key==="vigencia") {
+    const ei=checkExpiry(input.value.trim());
+    if(ei.expired){input.style.borderColor="rgba(255,23,68,.6)";input.style.background="rgba(255,23,68,.08)";}
+    else if(ei.daysLeft!=null&&ei.daysLeft<=30){input.style.borderColor="rgba(255,179,0,.5)";input.style.background="rgba(255,179,0,.07)";}
+    else{input.style.borderColor=filled?"rgba(57,255,20,.3)":"rgba(255,179,0,.5)";input.style.background=filled?"rgba(57,255,20,.05)":"rgba(255,179,0,.07)";}
+  } else {
+    input.style.borderColor=filled?"rgba(57,255,20,.3)":"rgba(255,179,0,.5)";
+    input.style.background=filled?"rgba(57,255,20,.05)":"rgba(255,179,0,.07)";
+  }
+
+  // Update button
+  const btn=$("confirm-photo-btn"); if(!btn) return;
+  const allFilled=BADGE_REQUIRED.every(f=>(state.pendingOCR[f.key]||"").trim().length>0);
+  const expiredCred=state.pendingOCR.vigencia?checkExpiry(state.pendingOCR.vigencia).expired:false;
+  btn.style.background=expiredCred?"var(--red)":allFilled?"var(--neon)":"var(--cyan)";
+  btn.style.color=expiredCred?"#fff":"#001a00";
+  btn.textContent=expiredCred?"⚠ VENCIDA — CONFIRMAR IGUALMENTE":allFilled?"✓ CONFIRMAR AED":"✓ USAR CREDENCIAL";
+}
+
+function confirmPhoto() {
+  const photo=state.pendingPhoto;
+  const ocr=state.pendingOCR;
+  if(!photo) return;
+  state.pendingPhoto=null;
+  state.pendingOCR=null;
+  closeCam();
+
+  const badge={
+    photo, ocr:ocr||{},
+    direction:state.direction||"in",
+    time:t12(),
+    exitTime:null,
+    mode:"access",
+  };
+  state.badges.push(badge);
+  state.direction=null;
+
+  // Toast
+  const isIn=badge.direction==="in";
+  const name=ocr?.nombre?` · ${ocr.nombre.split(" ")[0]}`:"";
+  const exp=ocr?.vigencia?checkExpiry(ocr.vigencia):null;
+  if(exp?.expired){
+    toast(`⚠ VENCIDA${name} — ${ocr.vigencia||""}`, "var(--red)", "rgba(255,23,68,.5)");
+  } else {
+    toast(`${isIn?"⬇ Ingreso":"⬆ Salida"} registrado${name}`, isIn?"var(--neon)":"var(--red)", isIn?"rgba(57,255,20,.4)":"rgba(255,23,68,.4)");
+  }
+
+  updateKPIs();
+  renderAccessLog();
+  logBadgeToSheet(badge);
+  uploadPhoto(photo, buildBadgeFilename(badge));
+}
+
+// ══════════════════════════════════════════════
+// APPS SCRIPT / DRIVE
+// ══════════════════════════════════════════════
+function buildBadgeFilename(b) {
+  const o=b.ocr||{};
+  const name=(o.nombre||"CREDENCIAL").replace(/[^a-zA-Z0-9áéíóúñÁÉÍÓÚÑ\s]/g,"").trim().replace(/\s+/g,"_").slice(0,40);
+  const dir=b.direction==="out"?"SALIDA":"INGRESO";
+  const ts=new Date().toISOString().slice(0,19).replace(/[T:]/g,"-");
+  return `AED_${name}_${dir}_${ts}.jpg`;
+}
+
+async function uploadPhoto(dataUrl, filename) {
+  const url=getScriptUrl(); if(!url) return;
+  const f=state.flight||{};
+  const folder=f.folderName||`CA_${f.id||"VUELO"}`;
+  try {
+    await fetch(url,{method:"POST",mode:"no-cors",headers:{"Content-Type":"text/plain"},body:JSON.stringify({action:"uploadPhoto",filename,folder,imageB64:dataUrl.split(",")[1]})});
+  } catch(e){console.warn("Upload error:",e);}
+}
+
+async function logBadgeToSheet(badge) {
+  const url=getScriptUrl(); if(!url) return;
+  const o=badge.ocr||{}, f=state.flight||{};
+  const user=getSession()||{};
+  const now=new Date();
+  try {
+    await fetch(url,{method:"POST",mode:"no-cors",headers:{"Content-Type":"text/plain"},body:JSON.stringify({
+      hoja:"control",
+      timestamp:now.toISOString(),
+      hora:`${String(now.getHours()).padStart(2,"0")}:${String(now.getMinutes()).padStart(2,"0")}`,
+      fecha:`${String(now.getDate()).padStart(2,"0")}/${String(now.getMonth()+1).padStart(2,"0")}/${now.getFullYear()}`,
+      nombre:o.nombre||"",
+      puesto:o.puesto||"",
+      cedula:o.cedula||"",
+      empresa:o.empresa||"",
+      vigencia:o.vigencia||"",
+      id_cred:o.numero_credencial||"",
+      nivel_acceso:o.nivel_acceso||"",
+      vuelo:f.id||"",
+      aerolinea:f.airline||"",
+      gate:f.gate||"",
+      dest:f.dest||"",
+      arr:f.arr||"",
+      dep:f.dep||"",
+      direccion:badge.direction==="out"?"SALIDA":"INGRESO",
+      modo:"control",
+      usuario:user.username||"",
+      estatus:"en_proceso",
+    })});
+  } catch(e){console.warn("Sheet log error:",e);}
+}
+
+async function finalizarReporte() {
+  const url=getScriptUrl(); if(!url) return;
+  const f=state.flight||{}, user=getSession()||{};
+  const now=new Date();
+  try {
+    await fetch(url,{method:"POST",mode:"no-cors",headers:{"Content-Type":"text/plain"},body:JSON.stringify({
+      action:"finalizarReporte",
+      hoja:"control",
+      vuelo:f.id||"",
+      fecha:`${String(now.getDate()).padStart(2,"0")}/${String(now.getMonth()+1).padStart(2,"0")}/${now.getFullYear()}`,
+      usuario:user.username||"",
+    })});
+  } catch(e){console.warn("Finalizar error:",e);}
+}
+
+// ══════════════════════════════════════════════
+// SIGNATURE
+// ══════════════════════════════════════════════
+let _signDrawing=false, _signHasStrokes=false;
+
+function openSignatureModal() {
+  const user=getSession()||{};
+  const f=state.flight||{};
+  const modal=$("sign-modal");
+  $("sign-subtitle").textContent=`Control de Accesos · ${f.id||""} · ${f.airline||""} · ${t12()}`;
+  $("sign-user-badge").textContent=(user.nombre||user.username||"Oficial").split(" ")[0].toUpperCase();
+  _signHasStrokes=false;
+  clearSignature();
+  updateSignBtn();
+  modal.style.display="flex";
+  requestAnimationFrame(initSignCanvas);
+}
+
+function cancelSignature() {
+  $("sign-modal").style.display="none";
+}
+
+function clearSignature() {
+  const canvas=$("sign-canvas"); if(!canvas) return;
+  const ctx=canvas.getContext("2d");
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  _signHasStrokes=false;
+  const st=$("sign-status");
+  if(st){st.textContent="✏ Firme con su dedo en el recuadro";st.style.color="var(--dim)";}
+  updateSignBtn();
+}
+
+function updateSignBtn() {
+  const btn=$("sign-confirm-btn"); if(!btn) return;
+  if(_signHasStrokes){
+    btn.disabled=false;btn.style.background="var(--neon)";btn.style.color="#001a00";btn.style.boxShadow="var(--glow-neon)";
+  } else {
+    btn.disabled=true;btn.style.background="var(--dim)";btn.style.color="rgba(255,255,255,.3)";btn.style.boxShadow="none";
+  }
+}
+
+function initSignCanvas() {
+  const canvas=$("sign-canvas"); if(!canvas) return;
+  const rect=canvas.getBoundingClientRect();
+  canvas.width=rect.width*(window.devicePixelRatio||1);
+  canvas.height=rect.height*(window.devicePixelRatio||1);
+  const ctx=canvas.getContext("2d");
+  ctx.scale(window.devicePixelRatio||1,window.devicePixelRatio||1);
+  ctx.strokeStyle="#39FF14"; ctx.lineWidth=2.2; ctx.lineCap="round"; ctx.lineJoin="round";
+  // Baseline
+  ctx.beginPath();ctx.setLineDash([4,6]);ctx.strokeStyle="rgba(57,255,20,.15)";ctx.lineWidth=1;
+  ctx.moveTo(16,rect.height-40);ctx.lineTo(rect.width-16,rect.height-40);ctx.stroke();
+  ctx.setLineDash([]);ctx.strokeStyle="#39FF14";ctx.lineWidth=2.5;
+
+  const newCanvas=canvas.cloneNode(true);
+  canvas.parentNode.replaceChild(newCanvas,canvas);
+  const c=$("sign-canvas");
+  const cx=c.getContext("2d");
+  cx.scale(window.devicePixelRatio||1,window.devicePixelRatio||1);
+  cx.beginPath();cx.setLineDash([4,6]);cx.strokeStyle="rgba(57,255,20,.15)";cx.lineWidth=1;
+  cx.moveTo(16,rect.height-40);cx.lineTo(rect.width-16,rect.height-40);cx.stroke();
+  cx.setLineDash([]);cx.strokeStyle="#39FF14";cx.lineWidth=2.5;cx.lineCap="round";cx.lineJoin="round";
+
+  function getPos(e){const r=c.getBoundingClientRect();const s=e.touches?e.touches[0]:e;return{x:s.clientX-r.left,y:s.clientY-r.top};}
+  let lx=0,ly=0;
+  function start(e){e.preventDefault();_signDrawing=true;const p=getPos(e);lx=p.x;ly=p.y;cx.beginPath();cx.moveTo(lx,ly);}
+  function draw(e){if(!_signDrawing)return;e.preventDefault();const p=getPos(e);cx.lineTo(p.x,p.y);cx.stroke();cx.beginPath();cx.moveTo(p.x,p.y);lx=p.x;ly=p.y;if(!_signHasStrokes){_signHasStrokes=true;updateSignBtn();const st=$("sign-status");if(st){st.textContent="✓ Firma capturada — confirme para continuar";st.style.color="var(--neon)";}}}
+  function end(e){if(!_signDrawing)return;e.preventDefault();_signDrawing=false;cx.beginPath();}
+  c.addEventListener("touchstart",start,{passive:false});
+  c.addEventListener("touchmove",draw,{passive:false});
+  c.addEventListener("touchend",end,{passive:false});
+  c.addEventListener("mousedown",start);
+  c.addEventListener("mousemove",draw);
+  c.addEventListener("mouseup",end);
+  c.addEventListener("mouseleave",end);
+}
+
+async function confirmSignature() {
+  if(!_signHasStrokes) return;
+  const canvas=$("sign-canvas");
+  const signDataUrl=canvas?canvas.toDataURL("image/png",.85):null;
+  state.signature={dataUrl:signDataUrl, timestamp:new Date().toISOString(), user:getSession()?.username||""};
+  if(signDataUrl) uploadPhoto(signDataUrl,`FIRMA_${(getSession()?.username||"OFICIAL").toUpperCase()}_CONTROL_${new Date().toISOString().slice(0,10)}.png`);
+  $("sign-modal").style.display="none";
+  await finalizarReporte();
+  await enviarCorreo();
+  buildDoneScreen();
+  showScreen("s-done");
+}
+
+// ══════════════════════════════════════════════
+// EMAIL REPORT
+// ══════════════════════════════════════════════
+async function enviarCorreo() {
+  const url=getScriptUrl(); if(!url) return;
+  const f=state.flight||{}, user=getSession()||{};
+  const now=new Date();
+  try {
+    await fetch(url,{
+      method:"POST",
+      headers:{"Content-Type":"text/plain"},
+      body:JSON.stringify({
+        action:"enviarcorreo",
+        tipo:"Control de Accesos",
+        vuelo:f.id||"", aerolinea:f.airline||"", gate:f.gate||"", dest:f.dest||"",
+        fecha:`${String(now.getDate()).padStart(2,"0")}/${String(now.getMonth()+1).padStart(2,"0")}/${now.getFullYear()}`,
+        hora:`${String(now.getHours()).padStart(2,"0")}:${String(now.getMinutes()).padStart(2,"0")}`,
+        oficial:user.nombre||user.username||"",
+        folderName:f.folderName||f.id||"",
+        credenciales:state.badges.map(b=>({
+          nombre:b.ocr?.nombre||"—",
+          puesto:b.ocr?.puesto||"—",
+          cedula:b.ocr?.cedula||"—",
+          empresa:b.ocr?.empresa||"—",
+          vigencia:b.ocr?.vigencia||"—",
+          numero_credencial:b.ocr?.numero_credencial||"—",
+          nivel_acceso:b.ocr?.nivel_acceso||"—",
+          direccion:b.direction==="out"?"SALIDA":"INGRESO",
+          hora:b.time||"",
+        })),
+      }),
+      redirect:"follow",
+    });
+  } catch(e){console.error("Correo error:",e);}
+}
+
+// ══════════════════════════════════════════════
+// DONE SCREEN
+// ══════════════════════════════════════════════
+function buildDoneScreen() {
+  const f=state.flight||{};
+  const total=state.badges.length;
+  const salidas=state.badges.filter(b=>b.direction==="out").length;
+  const dentro=total-salidas;
+  const alertas=state.badges.filter(b=>b.ocr&&checkExpiry(b.ocr.vigencia).expired).length;
+
+  $("done-sub").innerHTML=`${f.id} · ${f.airline} · PUERTA ${f.gate}${f.dest?` → ${f.dest}`:""}`;
+
+  // KPI
+  $("done-kpi").innerHTML=[
+    kpiCard("CREDENCIALES",total,"var(--cyan)"),
+    kpiCard("DENTRO",dentro,"var(--neon)"),
+    kpiCard("SALIDAS",salidas,"var(--red)"),
+    kpiCard("ALERTAS",alertas,alertas>0?"var(--red)":"var(--dim)"),
+  ].join("");
+
+  // Signature block
+  const signEl=$("done-sign-block");
+  if(state.signature?.dataUrl) {
+    const user=getSession()||{};
+    signEl.innerHTML=`<div style="padding:12px 14px;border-radius:8px;background:rgba(57,255,20,.04);border:1px solid rgba(57,255,20,.18)">
+      <div style="font-family:var(--head);font-size:10px;color:var(--neon);letter-spacing:.08em;margin-bottom:8px">✍ FIRMA OFICIAL</div>
+      <div style="display:flex;align-items:center;gap:12px">
+        <div style="border-radius:6px;overflow:hidden;border:1px solid rgba(57,255,20,.3);background:rgba(7,24,40,.9);padding:4px">
+          <img src="${state.signature.dataUrl}" style="height:55px;max-width:160px;display:block;object-fit:contain"/>
+        </div>
+        <div>
+          <div style="font-family:var(--head);font-size:11px;color:var(--t1)">${user.nombre||user.username||""}</div>
+          <div style="font-family:var(--mono);font-size:9px;color:var(--dim);margin-top:3px">${new Date(state.signature.timestamp).toLocaleString("es-CR")}</div>
+        </div>
+      </div>
+    </div>`;
+  } else signEl.innerHTML="";
+
+  // Credentials table
+  $("done-table").innerHTML=total>0?credTableHTML():`<div style="padding:14px;border-radius:8px;background:rgba(57,255,20,.04);border:1px solid rgba(57,255,20,.12);font-family:var(--mono);font-size:10px;color:var(--neon);text-align:center">Sin credenciales registradas</div>`;
+}
+
+function credTableHTML() {
+  const rows=state.badges.map((b,i)=>{
+    const o=b.ocr||{};
+    const isOut=b.direction==="out";
+    const exp=checkExpiry(o.vigencia);
+    const zc=accessZoneColor(o.nivel_acceso);
+    return `<tr style="background:${i%2===0?"rgba(0,229,255,.015)":"transparent"}">
+      <td style="padding:7px 10px;border-bottom:1px solid rgba(0,229,255,.05)">
+        <div style="display:flex;align-items:center;gap:7px">
+          <div style="width:28px;height:28px;border-radius:3px;overflow:hidden;border:1px solid rgba(57,255,20,.2);flex-shrink:0"><img src="${b.photo}" style="width:100%;height:100%;object-fit:cover"/></div>
+          <div>
+            <div style="font-family:var(--head);font-size:10px;font-weight:700;color:var(--t1)">${o.nombre||"—"}</div>
+            <div style="font-family:var(--mono);font-size:8px;color:var(--dim)">${o.puesto||""}</div>
+          </div>
+        </div>
+      </td>
+      <td style="padding:7px 10px;border-bottom:1px solid rgba(0,229,255,.05);font-family:var(--mono);font-size:9px;color:var(--t3)">${o.empresa||"—"}</td>
+      <td style="padding:7px 10px;border-bottom:1px solid rgba(0,229,255,.05);font-family:var(--mono);font-size:8px;color:var(--t3)">${o.numero_credencial||"—"}</td>
+      <td style="padding:7px 10px;border-bottom:1px solid rgba(0,229,255,.05)">
+        ${o.nivel_acceso?`<span style="font-family:var(--mono);font-size:8px;padding:1px 6px;background:${zc.bg};border:1px solid ${zc.border};border-radius:2px;color:${zc.color};font-weight:700">${o.nivel_acceso}</span>`:"—"}
+      </td>
+      <td style="padding:7px 10px;border-bottom:1px solid rgba(0,229,255,.05);font-family:var(--mono);font-size:9px;color:${isOut?"var(--red)":"var(--neon)"}">${isOut?"⬆":"⬇"} ${b.time}</td>
+      <td style="padding:7px 10px;border-bottom:1px solid rgba(0,229,255,.05)">
+        ${exp.expired
+          ?`<span style="font-family:var(--mono);font-size:8px;padding:1px 6px;background:rgba(255,23,68,.12);border:1px solid rgba(255,23,68,.4);border-radius:2px;color:var(--red)">⚠ VENCIDA</span>`
+          :exp.daysLeft<=30
+            ?`<span style="font-family:var(--mono);font-size:8px;padding:1px 6px;background:rgba(255,179,0,.08);border:1px solid rgba(255,179,0,.3);border-radius:2px;color:var(--amber)">⏰ ${o.vigencia}</span>`
+            :`<span style="font-family:var(--mono);font-size:8px;padding:1px 6px;background:rgba(57,255,20,.07);border:1px solid rgba(57,255,20,.2);border-radius:2px;color:var(--neon)">✓ ${o.vigencia}</span>`}
+      </td>
+    </tr>`;
+  }).join("");
+
+  return `<div style="border-radius:8px;overflow:hidden;border:1px solid rgba(57,255,20,.18);background:rgba(10,32,53,.5)">
+    <div style="padding:10px 14px;border-bottom:1px solid rgba(57,255,20,.15);display:flex;align-items:center;justify-content:space-between">
+      <div style="font-family:var(--head);font-size:11px;color:var(--neon);letter-spacing:.08em">📛 REGISTRO DE CREDENCIALES AED</div>
+      <div style="font-family:var(--mono);font-size:9px;color:var(--dim)">${state.badges.length} registro${state.badges.length!==1?"s":""}</div>
+    </div>
+    <div style="overflow-x:auto">
+      <table style="width:100%;border-collapse:collapse;font-size:11px;min-width:560px">
+        <thead><tr style="background:rgba(57,255,20,.04)">
+          ${["PERSONA","EMPRESA","GAFETE AED","ZONA","MOVIMIENTO","VIGENCIA"].map(h=>`<th style="padding:7px 10px;text-align:left;font-family:var(--mono);font-size:8px;color:var(--t3);letter-spacing:.05em;white-space:nowrap">${h}</th>`).join("")}
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+  </div>`;
+}
+
+function kpiCard(label, value, color) {
+  return `<div style="padding:12px 10px;border-radius:8px;background:rgba(10,32,53,.7);border:1px solid ${color}20;text-align:center">
+    <div style="font-family:var(--head);font-size:24px;font-weight:900;color:${color};text-shadow:0 0 12px ${color}50;line-height:1">${value}</div>
+    <div style="font-family:var(--mono);font-size:8px;color:var(--dim);margin-top:4px;letter-spacing:.05em">${label}</div>
+  </div>`;
+}
+
+function resetAll() {
+  state.badges=[];
+  state.flight=null;
+  state.signature=null;
+  state.direction=null;
+  goFlight();
+}
+
+// ══════════════════════════════════════════════
+// BOOT
+// ══════════════════════════════════════════════
+(function boot() {
+  const user=getSession();
+  const age=getSessionAge();
+  if(!user||!user.username||age>12){
+    window.location.href="login.html"; return;
+  }
+  const nameEl=$("user-name-label");
+  if(nameEl) nameEl.textContent=user.nombre||user.username;
+  renderAirlineGrid();
+  $("access-clock").textContent=t12();
+})();
+</script>
+</body>
+</html>
